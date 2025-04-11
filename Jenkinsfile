@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git 'https://github.com/your-username/your-repo.git' // Replace with your repo
+                git 'https://github.com/Himani19111/Instance-creation-Additional-Disk.git' // Replace with your repo
             }
         }
 
