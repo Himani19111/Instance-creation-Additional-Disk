@@ -1,34 +1,53 @@
-provider "aws" {
-  region = "ap-south-1"  # Change region as needed
-}
+pipeline {
+    agent any
 
-resource "aws_instance" "my_instance" {
-  ami           = "ami-0e35ddab05955cf57"  # Example AMI (use a valid one for your region)
-  instance_type = "t2.micro"
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')     // Jenkins credential ID
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY') // Jenkins credential ID
+    }
 
-  root_block_device {
-    volume_size = 8  # Root disk size (optional, default is usually 8 GB)
-  }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git 'https://github.com/Himani19111/Instance-creation-Additional-Disk.git'
+            }
+        }
 
-  tags = {
-    Name = "Instance-With-Extra-Disk"
-  }
-}
+        stage('Terraform Init') {
+            steps {
+                sh 'terraform init'
+            }
+        }
 
-# ➕ Additional EBS Volume (20GB)
-resource "aws_ebs_volume" "extra_disk" {
-  availability_zone = aws_instance.my_instance.availability_zone
-  size              = 20  # Size in GB
-  type              = "gp2"  # General Purpose SSD
+        stage('Terraform Format Check') {
+            steps {
+                sh 'terraform fmt -check'
+            }
+        }
 
-  tags = {
-    Name = "Extra-20GB-Disk"
-  }
-}
+        stage('Terraform Validate') {
+            steps {
+                sh 'terraform validate'
+            }
+        }
 
-# 🔗 Attach the EBS Volume to the instance
-resource "aws_volume_attachment" "ebs_attach" {
-  device_name = "/dev/sdf"  # This is how Linux will see it
-  volume_id   = aws_ebs_volume.extra_disk.id
-  instance_id = aws_instance.my_instance.id
+        stage('Terraform Plan') {
+            steps {
+                sh 'terraform plan -out=tfplan'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                input message: 'Do you want to apply this plan?'
+                sh 'terraform apply -input=false tfplan'
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
 }
